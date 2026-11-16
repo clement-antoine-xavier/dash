@@ -1,0 +1,6 @@
+BasedOnStyle: Google
+Language: Cpp
+Standard: c++11
+ColumnLimit: 80
+SortIncludes: true
+IncludeBlocks: Regroup
