@@ -424,6 +424,10 @@ bool NinaWifi::NetworkInfo(NetworkAddresses& out, uint32_t timeout_ms) {
 }
 
 bool NinaWifi::DnsServers(DnsAddresses& out, uint32_t timeout_ms) {
+  // NINA 1.4.x does not implement kGetDnsConfig and answers with the error
+  // marker, so this returns false there. Name resolution still works because
+  // it runs inside the module. Decoding is in natural byte order; the reply
+  // carries two native-endian uint32_t values.
   if (!StartDummyCommand(nina::Opcode::kGetDnsConfig, timeout_ms)) {
     return false;
   }
@@ -439,11 +443,9 @@ bool NinaWifi::DnsServers(DnsAddresses& out, uint32_t timeout_ms) {
     ok = frame_.ReadParam8(buffer[i], sizeof(buffer[i]), &len) == Result::kOk &&
          len == 4;
   }
-  if (!ok) {
-    frame_.Abort();
-    return false;
-  }
-  if (frame_.FinishReply() != Result::kOk) {
+  // Drain whatever is left even after a short read so the next transaction
+  // does not start mid-frame.
+  if (frame_.FinishReply() != Result::kOk || !ok) {
     return false;
   }
 

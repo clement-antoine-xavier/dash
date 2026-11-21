@@ -190,11 +190,37 @@ void TestNetworkInfo() {
   CHECK(addresses.mask == dash::Ipv4(255, 255, 255, 0));
   CHECK(addresses.gateway == dash::Ipv4(192, 168, 1, 1));
 
-  sim.SetReply(nina::Opcode::kGetDnsConfig, {{8, 8, 8, 8}, {1, 1, 1, 1}});
+  // Non-palindromic values: a byte-order mistake would swap them.
+  sim.SetReply(nina::Opcode::kGetDnsConfig, {{192, 168, 1, 1}, {8, 8, 4, 4}});
   dash::DnsAddresses dns;
   CHECK(wifi.DnsServers(dns));
-  CHECK(dns.primary == dash::Ipv4(8, 8, 8, 8));
-  CHECK(dns.secondary == dash::Ipv4(1, 1, 1, 1));
+  CHECK(dns.primary == dash::Ipv4(192, 168, 1, 1));
+  CHECK(dns.secondary == dash::Ipv4(8, 8, 4, 4));
+}
+
+void TestDnsServersZeroAndError() {
+  FakeNina sim;
+  dash::NinaWifi wifi(sim);
+  sim.SetReply(nina::Opcode::kGetFwVersion, {{'1', '.', '4', '.', '8'}});
+  CHECK(wifi.Begin());
+
+  dash::DnsAddresses dns;
+
+  // A DHCP server may hand out 0.0.0.0; that is a valid reply, not an error.
+  sim.SetReply(nina::Opcode::kGetDnsConfig, {{0, 0, 0, 0}, {0, 0, 0, 0}});
+  CHECK(wifi.DnsServers(dns));
+  CHECK(dns.primary.IsZero());
+  CHECK(dns.secondary.IsZero());
+
+  // NINA 1.4.x has no kGetDnsConfig handler and replies with the error marker.
+  sim.SetErrorReply(nina::Opcode::kGetDnsConfig);
+  CHECK(!wifi.DnsServers(dns));
+
+  // The failed query must not desynchronise the next transaction.
+  sim.SetReply(nina::Opcode::kGetDnsConfig, {{9, 9, 9, 9}, {1, 0, 0, 1}});
+  CHECK(wifi.DnsServers(dns));
+  CHECK(dns.primary == dash::Ipv4(9, 9, 9, 9));
+  CHECK(dns.secondary == dash::Ipv4(1, 0, 0, 1));
 }
 
 void TestStaticIpAndDnsEncoding() {
@@ -317,6 +343,7 @@ int main() {
   TestConnectOpenAndWep();
   TestScan();
   TestNetworkInfo();
+  TestDnsServersZeroAndError();
   TestStaticIpAndDnsEncoding();
   TestCurrentLinkInfo();
   TestResolve();

@@ -356,6 +356,10 @@ Non-obvious details that the driver reproduces:
 - A scan returns at most 10 networks, the limit of the module's reply.
 - The driver requires NINA firmware 1.4.0 or newer for the extended
   `kStartClientTcp` command used by the TLS and hostname paths.
+- `DnsServers()` requires NINA firmware 3.0 or newer. Firmware 1.4.x has no
+  handler for `kGetDnsConfig` and answers with the error marker; `DnsServers()`
+  returns false there. Name resolution still works because it runs inside the
+  module.
 
 ## Safety
 
