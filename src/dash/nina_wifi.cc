@@ -262,12 +262,17 @@ bool NinaWifi::Connect(const char* ssid, const char* passphrase,
     return false;
   }
 
-  const uint32_t command_timeout = 5000;
-  if (!SetNetwork(ssid, static_cast<uint8_t>(ssid_len), command_timeout)) {
-    return false;
-  }
+  // For WPA2 the module joins from kSetPassphrase alone: the command stores
+  // the SSID/passphrase pair and starts the association. Sending kSetNet as
+  // well would first kick off an open-network join, which fails (the module
+  // reports 201, WIFI_REASON_NO_AP_FOUND) before the key is known. This
+  // mirrors WiFiNINA, which calls only wifiSetPassphrase().
+  //
+  // The module answers the command only after its blocking join/DHCP step, so
+  // the frame timeout must cover the whole connect budget, not a fixed short
+  // value.
   if (!SetPassphrase(ssid, static_cast<uint8_t>(ssid_len), passphrase,
-                     static_cast<uint8_t>(pass_len), command_timeout)) {
+                     static_cast<uint8_t>(pass_len), timeout_ms)) {
     return false;
   }
   return WaitForConnect(timeout_ms);
@@ -281,7 +286,8 @@ bool NinaWifi::ConnectOpen(const char* ssid, uint32_t timeout_ms) {
   if (ssid_len == 0 || ssid_len > nina::kSsidMaxLength) {
     return false;
   }
-  if (!SetNetwork(ssid, static_cast<uint8_t>(ssid_len), 5000)) {
+  // kSetNet starts an open-network join and answers only after it finishes.
+  if (!SetNetwork(ssid, static_cast<uint8_t>(ssid_len), timeout_ms)) {
     return false;
   }
   return WaitForConnect(timeout_ms);
@@ -298,11 +304,11 @@ bool NinaWifi::ConnectWep(const char* ssid, const char* key, uint8_t key_index,
       key_len > nina::kWepKeyMaxLength) {
     return false;
   }
-  if (!SetNetwork(ssid, static_cast<uint8_t>(ssid_len), 5000)) {
-    return false;
-  }
+  // As with WPA2, kSetKey alone starts the association; kSetNet must not be
+  // sent first or the module attempts an open-network join. The module replies
+  // only after the blocking join, so use the full connect budget.
   if (!SetKey(ssid, static_cast<uint8_t>(ssid_len), key_index, key,
-              static_cast<uint8_t>(key_len), 5000)) {
+              static_cast<uint8_t>(key_len), timeout_ms)) {
     return false;
   }
   return WaitForConnect(timeout_ms);

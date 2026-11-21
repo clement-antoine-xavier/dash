@@ -60,15 +60,13 @@ void TestConnectWpa() {
   CHECK(wifi.Connect("testnet", "password123"));
 
   CHECK(polls == 3);
-  CHECK(sim.Frames().size() == base + 2 + static_cast<size_t>(polls));
-  CHECK(sim.Frames()[base].cmd == nina::Opcode::kSetNet);
-  CHECK(sim.Frames()[base].params.size() == 1);
+  CHECK(sim.Frames().size() == base + 1 + static_cast<size_t>(polls));
+  CHECK(sim.Frames()[base].cmd == nina::Opcode::kSetPassphrase);
+  CHECK(sim.Frames()[base].params.size() == 2);
   CHECK(std::string(sim.Frames()[base].params[0].begin(),
                     sim.Frames()[base].params[0].end()) == "testnet");
-  CHECK(sim.Frames()[base + 1].cmd == nina::Opcode::kSetPassphrase);
-  CHECK(sim.Frames()[base + 1].params.size() == 2);
-  CHECK(std::string(sim.Frames()[base + 1].params[1].begin(),
-                    sim.Frames()[base + 1].params[1].end()) == "password123");
+  CHECK(std::string(sim.Frames()[base].params[1].begin(),
+                    sim.Frames()[base].params[1].end()) == "password123");
 }
 
 void TestConnectFailure() {
@@ -97,17 +95,23 @@ void TestConnectOpenAndWep() {
   CHECK(wifi.ConnectWep("wep-net", "abcde", 1));
 
   const auto& frames = sim.Frames();
-  bool saw_key = false;
+  int set_net_count = 0;
+  int set_key_count = 0;
   for (size_t i = 0; i < frames.size(); ++i) {
+    if (frames[i].cmd == nina::Opcode::kSetNet) {
+      ++set_net_count;
+    }
     if (frames[i].cmd == nina::Opcode::kSetKey) {
-      saw_key = true;
+      ++set_key_count;
       CHECK(frames[i].params.size() == 3);
       CHECK(frames[i].params[1].size() == 1 && frames[i].params[1][0] == 1);
       CHECK(std::string(frames[i].params[2].begin(),
                         frames[i].params[2].end()) == "abcde");
     }
   }
-  CHECK(saw_key);
+  // Only the open-network path uses kSetNet; WEP joins from kSetKey alone.
+  CHECK(set_net_count == 1);
+  CHECK(set_key_count == 1);
 }
 
 void TestScan() {
