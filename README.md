@@ -159,6 +159,9 @@ void setup() {
 ## API overview
 
 ```cpp
+const char* Version();
+const char* ReasonName(uint8_t reason);  // ESP32/NINA disconnect reason as text
+
 class Net {
   bool Begin(uint32_t timeout_ms = 5000);
 

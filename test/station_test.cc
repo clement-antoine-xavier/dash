@@ -316,6 +316,15 @@ void TestResolve() {
   CHECK(saw_request);
 }
 
+void TestReasonNames() {
+  CHECK(std::strcmp(dash::ReasonName(0), "none") == 0);
+  CHECK(std::strcmp(dash::ReasonName(15), "4-way handshake timeout") == 0);
+  CHECK(std::strcmp(dash::ReasonName(201), "no AP found") == 0);
+  CHECK(std::strcmp(dash::ReasonName(202), "authentication failed") == 0);
+  CHECK(std::strcmp(dash::ReasonName(205), "connection failed") == 0);
+  CHECK(std::strcmp(dash::ReasonName(250), "unknown") == 0);
+}
+
 void TestIpv4Literals() {
   dash::Ipv4 address;
   CHECK(dash::ParseIpv4("192.168.1.1", address));
@@ -347,6 +356,7 @@ int main() {
   TestStaticIpAndDnsEncoding();
   TestCurrentLinkInfo();
   TestResolve();
+  TestReasonNames();
   TestIpv4Literals();
 
   if (g_failures == 0) {

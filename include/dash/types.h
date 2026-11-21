@@ -26,6 +26,90 @@ enum class Status : uint8_t {
   kApFailed = 9,
 };
 
+// Human-readable name for the disconnect reason code reported by the module.
+// The values come from ESP-IDF's wifi_err_reason_t. Unknown codes return
+// "unknown"; callers should log the numeric code alongside this string.
+inline const char* ReasonName(uint8_t reason) {
+  switch (reason) {
+    case 0:
+      return "none";
+    case 1:
+      return "unspecified";
+    case 2:
+      return "auth expired";
+    case 3:
+      return "auth leaving";
+    case 4:
+      return "association expired";
+    case 5:
+      return "too many stations";
+    case 6:
+      return "not authenticated";
+    case 7:
+      return "not associated";
+    case 8:
+      return "association leaving";
+    case 9:
+      return "association not authenticated";
+    case 10:
+      return "power capability invalid";
+    case 11:
+      return "supported channel invalid";
+    case 13:
+      return "information element invalid";
+    case 14:
+      return "MIC failure";
+    case 15:
+      return "4-way handshake timeout";
+    case 16:
+      return "group key update timeout";
+    case 17:
+      return "information element in 4-way differs";
+    case 18:
+      return "group cipher invalid";
+    case 19:
+      return "pairwise cipher invalid";
+    case 20:
+      return "AKMP invalid";
+    case 21:
+      return "unsupported RSN IE version";
+    case 22:
+      return "invalid RSN IE capabilities";
+    case 23:
+      return "802.1X authentication failed";
+    case 24:
+      return "cipher suite rejected";
+    case 200:
+      return "beacon timeout";
+    case 201:
+      return "no AP found";
+    case 202:
+      return "authentication failed";
+    case 203:
+      return "association failed";
+    case 204:
+      return "handshake timeout";
+    case 205:
+      return "connection failed";
+    case 206:
+      return "AP TSF reset";
+    case 207:
+      return "roaming";
+    case 208:
+      return "association comeback time too long";
+    case 209:
+      return "SA query timeout";
+    case 210:
+      return "no AP with compatible security";
+    case 211:
+      return "no AP above auth mode threshold";
+    case 212:
+      return "no AP above RSSI threshold";
+    default:
+      return "unknown";
+  }
+}
+
 inline Status ToStatus(uint8_t value) {
   switch (value) {
     case 0:

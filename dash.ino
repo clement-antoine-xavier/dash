@@ -96,8 +96,12 @@ void setup() {
 
   Serial.print(F("status: "));
   Serial.println(StatusName(net.ConnectionStatus()));
+  const uint8_t reason = net.ReasonCode();
   Serial.print(F("reason: "));
-  Serial.println(net.ReasonCode());
+  Serial.print(reason);
+  Serial.print(F(" ("));
+  Serial.print(dash::ReasonName(reason));
+  Serial.println(')');
 }
 
 void loop() {

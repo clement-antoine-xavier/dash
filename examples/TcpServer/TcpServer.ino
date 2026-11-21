@@ -23,8 +23,12 @@ void setup() {
     return;
   }
   if (!net.Connect(WIFI_SSID, WIFI_PASSPHRASE, 30000)) {
+    const uint8_t reason = net.ReasonCode();
     Serial.print(F("join failed, reason "));
-    Serial.println(net.ReasonCode());
+    Serial.print(reason);
+    Serial.print(F(" ("));
+    Serial.print(dash::ReasonName(reason));
+    Serial.println(')');
     return;
   }
 
