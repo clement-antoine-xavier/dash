@@ -82,6 +82,19 @@ void TestConnectFailure() {
   CHECK(!wifi.Connect("testnet", "wrongpass"));
 }
 
+void TestFailedStatusConsumesReply() {
+  FakeNina sim;
+  dash::NinaWifi wifi(sim);
+  sim.SetReply(nina::Opcode::kGetFwVersion, {{'1', '.', '4', '.', '8'}});
+  CHECK(wifi.Begin());
+
+  // A failed configuration command reports zero parameters. The reply must
+  // still be drained so the following transaction is not desynchronised.
+  sim.SetReply(nina::Opcode::kSetPassphrase, {});
+  CHECK(!wifi.Connect("testnet", "password123"));
+  CHECK(sim.ReplyConsumed());
+}
+
 void TestConnectOpenAndWep() {
   FakeNina sim;
   dash::NinaWifi wifi(sim);
@@ -300,6 +313,7 @@ int main() {
   TestBeginReadsFirmware();
   TestConnectWpa();
   TestConnectFailure();
+  TestFailedStatusConsumesReply();
   TestConnectOpenAndWep();
   TestScan();
   TestNetworkInfo();

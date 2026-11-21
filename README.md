@@ -342,6 +342,10 @@ Non-obvious details that the driver reproduces:
   WPA2, `kSetKey` for WEP and `kSetNet` for open networks. The module replies
   only after that blocking join (and DHCP), so the frame timeout must cover the
   whole connect budget.
+- NINA firmware 1.4.x ignores the `startClientTcp` timeout parameter and can
+  block a connect for about 20 s. The driver waits for and drains that reply
+  before reusing the socket pool, so a failed connect cannot desynchronise the
+  next transaction.
 
 ## Limitations
 

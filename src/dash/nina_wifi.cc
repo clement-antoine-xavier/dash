@@ -108,17 +108,18 @@ bool NinaWifi::ReadStatusReply(nina::Opcode opcode, uint32_t timeout_ms) {
   if (r != Result::kOk) {
     return false;
   }
+  // Some commands report failure with zero parameters. Consume the END marker
+  // even then, otherwise the next transaction starts mid-frame.
+  bool ok = frame_.ReplyParamCount() != 0;
   uint8_t status = 0;
   uint8_t len = 0;
-  r = frame_.ReadParam8(&status, 1, &len);
-  if (r != Result::kOk) {
-    frame_.Abort();
-    return false;
+  if (ok) {
+    ok = frame_.ReadParam8(&status, 1, &len) == Result::kOk && len == 1;
   }
   if (frame_.FinishReply() != Result::kOk) {
     return false;
   }
-  return status == nina::kAck;
+  return ok && status == nina::kAck;
 }
 
 bool NinaWifi::StartDummyCommand(nina::Opcode opcode, uint32_t timeout_ms) {

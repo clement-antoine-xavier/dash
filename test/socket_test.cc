@@ -103,6 +103,105 @@ void TestConnectNotEstablished() {
   CHECK(!socket.IsOpen());
 }
 
+void TestFailedStatusConsumesReply() {
+  Fixture f;
+  CHECK(f.ConnectTcp());
+
+  // A failed socket command is reported with zero parameters. The driver must
+  // still consume the END marker so the next transaction stays in sync.
+  f.sim.SetReply(nina::Opcode::kStopClientTcp, {});
+  CHECK(!f.socket.Close());
+  CHECK(!f.socket.IsOpen());
+  CHECK(f.sim.ReplyConsumed());
+}
+
+void TestSocketRecoveryAfterNoSocket() {
+  FakeNina sim;
+  sim.Begin();
+  dash::NinaFrame frame(sim);
+  dash::NinaSocket socket(frame);
+
+  int acquires = 0;
+  sim.SetHandler(
+      nina::Opcode::kGetSocket, [&acquires](const FakeNina::Frame&) -> Params {
+        ++acquires;
+        return Params{{static_cast<uint8_t>(acquires == 1 ? 0xFF : 2)}};
+      });
+  sim.SetStatusReply(nina::Opcode::kStopClientTcp, nina::kAck);
+  sim.SetStatusReply(nina::Opcode::kStartClientTcp, nina::kAck);
+  sim.SetReply(nina::Opcode::kGetClientStateTcp,
+               {{static_cast<uint8_t>(nina::SocketState::kEstablished)}});
+
+  CHECK(socket.Connect(dash::Ipv4(1, 1, 1, 1), 80, 5000));
+  CHECK(socket.Handle() == 2);
+  CHECK(acquires == 2);
+
+  int stops = 0;
+  for (size_t i = 0; i < sim.Frames().size(); ++i) {
+    if (sim.Frames()[i].cmd == nina::Opcode::kStopClientTcp) {
+      ++stops;
+    }
+  }
+  CHECK(stops == 5);  // one per firmware socket
+}
+
+void TestSocketPoolExhausted() {
+  FakeNina sim;
+  sim.Begin();
+  dash::NinaFrame frame(sim);
+  dash::NinaSocket socket(frame);
+
+  int acquires = 0;
+  sim.SetHandler(nina::Opcode::kGetSocket,
+                 [&acquires](const FakeNina::Frame&) -> Params {
+                   ++acquires;
+                   return Params{{0xFF}};
+                 });
+  sim.SetStatusReply(nina::Opcode::kStopClientTcp, nina::kAck);
+
+  CHECK(!socket.Connect(dash::Ipv4(1, 1, 1, 1), 80, 5000));
+  CHECK(acquires == 2);
+  CHECK(!socket.IsOpen());
+}
+
+void TestInvalidSocketIndexRejected() {
+  FakeNina sim;
+  sim.Begin();
+  dash::NinaFrame frame(sim);
+  dash::NinaSocket socket(frame);
+
+  int acquires = 0;
+  sim.SetHandler(nina::Opcode::kGetSocket,
+                 [&acquires](const FakeNina::Frame&) -> Params {
+                   ++acquires;
+                   return Params{{acquires == 1 ? static_cast<uint8_t>(7)
+                                                : static_cast<uint8_t>(1)}};
+                 });
+  sim.SetStatusReply(nina::Opcode::kStopClientTcp, nina::kAck);
+  sim.SetStatusReply(nina::Opcode::kStartClientTcp, nina::kAck);
+  sim.SetReply(nina::Opcode::kGetClientStateTcp,
+               {{static_cast<uint8_t>(nina::SocketState::kEstablished)}});
+
+  CHECK(socket.Connect(dash::Ipv4(1, 1, 1, 1), 80, 5000));
+  CHECK(socket.Handle() == 1);
+  CHECK(acquires == 2);
+}
+
+void TestFailedConnectThenReconnect() {
+  Fixture f;
+  int starts = 0;
+  f.sim.SetHandler(nina::Opcode::kStartClientTcp,
+                   [&starts](const FakeNina::Frame&) -> Params {
+                     ++starts;
+                     return starts == 1 ? Params{} : Params{{1}};
+                   });
+  f.sim.SetStatusReply(nina::Opcode::kStopClientTcp, nina::kAck);
+
+  CHECK(!f.ConnectTcp());
+  CHECK(f.sim.ReplyConsumed());  // zero-parameter failure reply was drained
+  CHECK(f.ConnectTcp());         // the next attempt still works
+}
+
 void TestWrite() {
   Fixture f;
   CHECK(f.ConnectTcp());
@@ -330,6 +429,11 @@ int main() {
   TestConnectTlsEncoding();
   TestConnectNoSocket();
   TestConnectNotEstablished();
+  TestFailedStatusConsumesReply();
+  TestSocketRecoveryAfterNoSocket();
+  TestSocketPoolExhausted();
+  TestInvalidSocketIndexRejected();
+  TestFailedConnectThenReconnect();
   TestWrite();
   TestWritePartial();
   TestRead();

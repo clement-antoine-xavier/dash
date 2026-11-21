@@ -53,11 +53,18 @@ class NinaSocket {
   void Adopt(uint8_t handle);
 
  private:
+  // The firmware exposes five sockets, numbered 0..4.
+  static constexpr uint8_t kMaxSocketIndex = 4;
+
   bool Start(const char* host, uint8_t host_len, const Ipv4& ip, uint16_t port,
              nina::ProtMode prot_mode, uint32_t timeout_ms);
   bool WaitEstablished(uint32_t timeout_ms);
   bool Stop(uint32_t timeout_ms);
   uint8_t AcquireSocket(uint32_t timeout_ms);
+  uint8_t RequestSocket(uint32_t timeout_ms);
+  bool DrainPendingReply(nina::Opcode opcode, uint32_t timeout_ms);
+  void RecoverSockets(uint32_t timeout_ms);
+  void ReleaseAfterFailure(uint32_t timeout_ms);
   int SendChunk(const uint8_t* data, uint16_t len, uint32_t timeout_ms);
 
   NinaFrame& frame_;
