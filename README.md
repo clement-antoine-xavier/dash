@@ -37,7 +37,7 @@ implements that transport and protocol and exposes a small C++ API.
 | Phase | Scope | State |
 |---|---|---|
 | P0 | Scaffold, SPI frame codec, simulator, native tests | done |
-| P1 | `NinaSpiLink` hardware bring-up | driver written, awaiting hardware |
+| P1 | `NinaSpiLink` hardware bring-up | done (firmware 1.4.8 on hardware) |
 | P2 | Station mode: connect, scan, IP config | done |
 | P3 | DNS resolution | done |
 | P4 | TCP client | done |
@@ -46,9 +46,10 @@ implements that transport and protocol and exposes a small C++ API.
 | P7 | Hardening, Google style, docs, CI | done |
 | P8 | Optional: `TLS_BEARSSL_MODE` with ATECC608A | not implemented |
 
-Native tests and host-side protocol checks pass. On-board verification is the
-remaining step: the driver mirrors the documented NINA sequences but has not
-yet run against a physical module.
+Native tests and host-side protocol checks pass. On-board verification on a MKR
+WiFi 1010 running NINA firmware 1.4.8 covered reset/bring-up (firmware and MAC
+read), network scan, WPA2 join with DHCP, DNS resolution and a TCP/HTTP GET.
+TLS, UDP/SNTP and the TCP server have not yet been exercised on hardware.
 
 ## Layout
 
@@ -337,6 +338,10 @@ Non-obvious details that the driver reproduces:
   natural order.
 - `kAvailDataTcp` and `kSendDataTcp` replies carry 16-bit little-endian
   values; the frame layer reads them as short parameters.
+- A join is started by the configuration command itself: `kSetPassphrase` for
+  WPA2, `kSetKey` for WEP and `kSetNet` for open networks. The module replies
+  only after that blocking join (and DHCP), so the frame timeout must cover the
+  whole connect budget.
 
 ## Limitations
 
